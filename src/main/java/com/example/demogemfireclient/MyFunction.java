@@ -1,4 +1,4 @@
-package com.example.demogemfireserver;
+package com.example.demogemfireclient;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.gemfire.function.annotation.GemfireFunction;

@@ -1,0 +1,16 @@
+#spring:
+#  jpa:
+#    database: MYSQL
+#    hibernate:
+#      ddl-auto: update
+#  datasource:
+#    url: jdbc:mysql://localhost:3306/clienthealth
+#    username: root
+#    password: password
+#    driver-class-name: com.mysql.jdbc.Driver
+
+
+gemfire:
+  async-event:
+    batch-size: 1000
+    batch-time-interval: 10000

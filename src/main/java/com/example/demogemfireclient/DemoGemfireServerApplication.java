@@ -1,10 +1,8 @@
-package com.example.demogemfireserver;
+package com.example.demogemfireclient;
 
 import com.gemstone.gemfire.cache.Cache;
-import com.gemstone.gemfire.cache.RegionAttributes;
 import com.gemstone.gemfire.cache.RegionShortcut;
-import com.gemstone.gemfire.cache.asyncqueue.AsyncEvent;
-import com.gemstone.gemfire.cache.asyncqueue.AsyncEventListener;
+import com.gemstone.gemfire.pdx.ReflectionBasedAutoSerializer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,13 +11,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.CacheFactoryBean;
 import org.springframework.data.gemfire.PartitionedRegionFactoryBean;
-import org.springframework.data.gemfire.RegionAttributesFactoryBean;
 import org.springframework.data.gemfire.function.config.EnableGemfireFunctions;
 import org.springframework.data.gemfire.server.CacheServerFactoryBean;
 import org.springframework.data.gemfire.util.ArrayUtils;
 import org.springframework.data.gemfire.wan.AsyncEventQueueFactoryBean;
 
-import java.util.List;
 import java.util.Properties;
 
 @Slf4j
@@ -28,7 +24,6 @@ import java.util.Properties;
 public class DemoGemfireServerApplication {
 
 	static final boolean DEFAULT_AUTO_STARTUP = true;
-
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoGemfireServerApplication.class, args);
@@ -60,6 +55,9 @@ public class DemoGemfireServerApplication {
 
 		gemfireCache.setClose(true);
 		gemfireCache.setProperties(gemfireProperties);
+		gemfireCache.setPdxReadSerialized(true);
+		gemfireCache.setPdxSerializer(new ReflectionBasedAutoSerializer());
+
 
 		return gemfireCache;
 	}
@@ -82,80 +80,51 @@ public class DemoGemfireServerApplication {
 		return gemfireCacheServer;
 	}
 
+
 	@Bean
-	PartitionedRegionFactoryBean<Long, Long> factorialsRegion(
-			Cache gemfireCache,
-			@Qualifier("factorialsRegionAttributes") RegionAttributes<Long, Long> factorialsRegionAttributes)
-			throws Exception {
+	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion(
+			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository
+//			, @Qualifier("clientHealthRegionAttributes") RegionAttributes<String, ClientHealthInfo> clientHealthRegionAttributes
+	) throws Exception{
+		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
+		clientHealthRegion.setCache(gemfireCache);
+		clientHealthRegion.setClose(false);
+		clientHealthRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
+		clientHealthRegion.setName("ClientHealth");
+		clientHealthRegion.setPersistent(false);
+		clientHealthRegion.setAsyncEventQueues(
+				ArrayUtils.asArray(myAsyncEventQueue(gemfireCache, clientHealthInfoRepository).getObject()));
+//		clientHealthRegion.setAttributes(clientHealthRegionAttributes);
 
-		PartitionedRegionFactoryBean<Long, Long> factorialsRegion = new PartitionedRegionFactoryBean<>();
+		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoader(clientHealthInfoRepository));
 
-		factorialsRegion.setAttributes(factorialsRegionAttributes);
-		factorialsRegion.setCache(gemfireCache);
-		factorialsRegion.setClose(false);
-		factorialsRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
-
-		factorialsRegion.setName("Factorials");
-		factorialsRegion.setPersistent(false);
-
-		factorialsRegion.setAsyncEventQueues(
-		ArrayUtils.asArray(myAsyncEventQueue(gemfireCache).getObject()));
-
-		return factorialsRegion;
+		return clientHealthRegion;
 	}
 
 //	@Bean
-//	DiskStoreFactoryBean myDiskStore(Cache gemfireCache){
-//		DiskStoreFactoryBean diskStoreFactoryBean = new DiskStoreFactoryBean();
-//		diskStoreFactoryBean.setCache(gemfireCache);
-//
-//		diskStoreFactoryBean.setBeanName("myDiskStore");
-//		DiskStoreFactoryBean.DiskDir dir = new DiskStoreFactoryBean.DiskDir
-//				("/Users/derrickwong/Downloads/demo-gemfire-server/", 20);
-//		diskStoreFactoryBean.setDiskDirs(Lists.newArrayList(dir));
-//
-//		return diskStoreFactoryBean;
+//	RegionAttributesFactoryBean clientHealthRegionAttributes(ClientHealthInfoRepository clientHealthInfoRepository) {
+//		RegionAttributesFactoryBean clientHealthRegionAttributes = new RegionAttributesFactoryBean();
+//		clientHealthRegionAttributes.setCacheLoader(new ClientHealthCacheLoader(clientHealthInfoRepository));
+//		return clientHealthRegionAttributes;
 //	}
 
+
+	@Value("${gemfire.async-event.batch-size:100}") int asyncBatchSize;
+	@Value("${gemfire.async-event.batch-time-interval:10000}") int asyncBatchTimeInterval;
+
 	@Bean
-	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache){
+	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository){
+
 		AsyncEventQueueFactoryBean asyncEventQueueFactoryBean = new AsyncEventQueueFactoryBean(gemfireCache);
 
 		asyncEventQueueFactoryBean.setParallel(true);
-		asyncEventQueueFactoryBean.setBatchSize(10);
+		asyncEventQueueFactoryBean.setBatchSize(asyncBatchSize);
 		asyncEventQueueFactoryBean.setPersistent(false);
-//		asyncEventQueueFactoryBean.setDiskStoreRef("myDiskStore");
 
-
-		AsyncEventListener asyncEventListener = new AsyncEventListener() {
-			@Override
-			public boolean processEvents(List<AsyncEvent> list) {
-				log.info("processEvent");
-				return true;
-			}
-
-			@Override
-			public void close() {
-
-			}
-		};
-
-		asyncEventQueueFactoryBean.setAsyncEventListener(asyncEventListener);
+		asyncEventQueueFactoryBean.setBatchTimeInterval(asyncBatchTimeInterval);
+		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListener(clientHealthInfoRepository));
 
 		return asyncEventQueueFactoryBean;
 	}
-
-	@Bean
-	@SuppressWarnings("unchecked")
-	RegionAttributesFactoryBean factorialsRegionAttributes() {
-		RegionAttributesFactoryBean factorialsRegionAttributes = new RegionAttributesFactoryBean();
-
-//		factorialsRegionAttributes.setCacheLoader(factorialsCacheLoader());
-		factorialsRegionAttributes.setKeyConstraint(Long.class);
-		factorialsRegionAttributes.setValueConstraint(Long.class);
-
-		return factorialsRegionAttributes;
-	}
-
 
 }
