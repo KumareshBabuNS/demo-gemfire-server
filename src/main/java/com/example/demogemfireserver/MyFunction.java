@@ -16,7 +16,7 @@ public class MyFunction{
     @GemfireFunction(HA = true)
     public String function1(){
 
-        String result = "hi" + UUID.randomUUID();
+        String result = UUID.randomUUID().toString();
         log.info("function1 execute " + result);
         return result;
     }

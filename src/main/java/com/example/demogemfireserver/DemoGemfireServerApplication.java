@@ -65,10 +65,11 @@ public class DemoGemfireServerApplication {
 	}
 
 	@Bean
-	CacheServerFactoryBean gemfireCacheServer(Cache gemfireCache,
-											  @Value("${gemfire.cache.server.bind-address:localhost}") String bindAddress,
-											  @Value("${gemfire.cache.server.hostname-for-clients:localhost}") String hostNameForClients,
-											  @Value("${gemfire.cache.server.port:40404}") int port) {
+	CacheServerFactoryBean gemfireCacheServer(
+			Cache gemfireCache,
+		  	@Value("${gemfire.cache.server.bind-address:localhost}") String bindAddress,
+		  	@Value("${gemfire.cache.server.hostname-for-clients:localhost}") String hostNameForClients,
+		  	@Value("${gemfire.cache.server.port:40404}") int port) {
 
 		CacheServerFactoryBean gemfireCacheServer = new CacheServerFactoryBean();
 
@@ -156,10 +157,5 @@ public class DemoGemfireServerApplication {
 		return factorialsRegionAttributes;
 	}
 
-
-	@Bean
-	MyFunction myFunction(){
-		return new MyFunction();
-	}
 
 }
