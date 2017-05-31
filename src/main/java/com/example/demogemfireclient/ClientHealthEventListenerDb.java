@@ -13,9 +13,7 @@ import java.util.stream.Collectors;
  * Created by derrickwong on 29/5/2017.
  */
 @Slf4j
-public class ClientHealthEventListenerDb implements AsyncEventListener{
-
-
+public class ClientHealthEventListenerDb implements AsyncEventListener {
 
     private ClientHealthInfoRepository clientHealthInfoRepository;
 
@@ -34,6 +32,7 @@ public class ClientHealthEventListenerDb implements AsyncEventListener{
                         .collect(Collectors.toList());
         if(healthEvents!=null && healthEvents.size()>0)
             clientHealthInfoRepository.save(healthEvents);
+
         log.info("Saved " + healthEvents.size() + " of client health info");
 
         return true;

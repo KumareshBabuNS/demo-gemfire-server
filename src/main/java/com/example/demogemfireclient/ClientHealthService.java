@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 /**
  * Created by derrickwong on 31/5/2017.
  */
-@FeignClient(name="ClientHealthService",
+@FeignClient(name="ClientHealthService", url = "${restrepo.uri:localhost:8090}")
         //url = "https://moverestrepo.apps.eas.pcf.manulife.com")
-        url = "localhost:8090")
+//        url = "localhost:8090")
 public interface ClientHealthService {
 
     @GetMapping("/clientHealthInfoes/{accountId}")

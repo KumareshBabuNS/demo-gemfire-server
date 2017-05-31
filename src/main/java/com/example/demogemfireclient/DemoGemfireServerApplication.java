@@ -25,7 +25,6 @@ import java.util.Properties;
 @Slf4j
 @EnableGemfireFunctions
 @EnableFeignClients(clients = ClientHealthService.class)
-
 @EnableHypermediaSupport(type = EnableHypermediaSupport.HypermediaType.HAL)
 @SpringBootApplication
 public class DemoGemfireServerApplication {
@@ -101,7 +100,24 @@ public class DemoGemfireServerApplication {
 		clientHealthRegion.setName("ClientHealth");
 		clientHealthRegion.setPersistent(false);
 		clientHealthRegion.setAsyncEventQueues(ArrayUtils.asArray(myAsyncEventQueue));
-		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoader(clientHealthService));
+		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoaderFeign(clientHealthService));
+
+		return clientHealthRegion;
+	}
+
+
+	@Bean
+	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion2(
+			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository, AsyncEventQueue myAsyncEventQueue2
+	) throws Exception{
+		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
+		clientHealthRegion.setCache(gemfireCache);
+		clientHealthRegion.setClose(false);
+		clientHealthRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
+		clientHealthRegion.setName("ClientHealth2");
+		clientHealthRegion.setPersistent(false);
+		clientHealthRegion.setAsyncEventQueues(ArrayUtils.asArray(myAsyncEventQueue2));
+		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoaderDb(clientHealthInfoRepository));
 
 		return clientHealthRegion;
 	}
@@ -120,12 +136,25 @@ public class DemoGemfireServerApplication {
 		asyncEventQueueFactoryBean.setPersistent(false);
 
 		asyncEventQueueFactoryBean.setBatchTimeInterval(asyncBatchTimeInterval);
-//		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListenerDb(clientHealthInfoRepository));
 		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListenerFeign(clientHealthService));
 
 		return asyncEventQueueFactoryBean;
 	}
 
 
+	@Bean
+	AsyncEventQueueFactoryBean myAsyncEventQueue2(Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository){
+
+		AsyncEventQueueFactoryBean asyncEventQueueFactoryBean2 = new AsyncEventQueueFactoryBean(gemfireCache);
+
+		asyncEventQueueFactoryBean2.setParallel(true);
+		asyncEventQueueFactoryBean2.setBatchSize(asyncBatchSize);
+		asyncEventQueueFactoryBean2.setPersistent(false);
+
+		asyncEventQueueFactoryBean2.setBatchTimeInterval(asyncBatchTimeInterval);
+		asyncEventQueueFactoryBean2.setAsyncEventListener(new ClientHealthEventListenerDb(clientHealthInfoRepository));
+
+		return asyncEventQueueFactoryBean2;
+	}
 
 }

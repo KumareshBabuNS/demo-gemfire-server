@@ -11,18 +11,11 @@ import org.springframework.hateoas.Resource;
  * Created by derrickwong on 29/5/2017.
  */
 @Slf4j
-public class ClientHealthCacheLoader implements CacheLoader<String, ClientHealthInfo>{
-
-//    private ClientHealthInfoRepository clientHealthInfoRepository;
-
-//    @Autowired
-//    public ClientHealthCacheLoader(ClientHealthInfoRepository clientHealthInfoRepository) {
-//        this.clientHealthInfoRepository = clientHealthInfoRepository;
-//    }
+public class ClientHealthCacheLoaderFeign implements CacheLoader<String, ClientHealthInfo>{
 
     private ClientHealthService clientHealthService;
 
-    public ClientHealthCacheLoader( ClientHealthService clientHealthService){
+    public ClientHealthCacheLoaderFeign(ClientHealthService clientHealthService){
         this.clientHealthService=clientHealthService;
     }
 

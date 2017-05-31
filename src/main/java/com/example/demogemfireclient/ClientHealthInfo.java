@@ -48,7 +48,8 @@ public class ClientHealthInfo
     }
 
 
-    @Id @javax.persistence.Id
+    @Id
+    @javax.persistence.Id
     private String accountId;
     private Long steps;
     private Long caloriesBurnt;
