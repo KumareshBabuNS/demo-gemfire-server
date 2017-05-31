@@ -73,20 +73,6 @@ public class DemoGemfireServerApplication {
 	}
 
 	@Bean
-	PartitionedRegionFactoryBean<String, Client> clientRegion(
-			Cache gemfireCache, ClientRepository clientRepository) throws Exception{
-		PartitionedRegionFactoryBean<String, Client> clientRegion = new PartitionedRegionFactoryBean();
-		clientRegion.setCache(gemfireCache);
-		clientRegion.setClose(false);
-		clientRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
-		clientRegion.setName("Client");
-		clientRegion.setPersistent(false);
-		clientRegion.setCacheLoader(new ClientCacheLoader(clientRepository));
-
-		return clientRegion;
-	}
-
-	@Bean
 	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion(
 			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository) throws Exception{
 		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
