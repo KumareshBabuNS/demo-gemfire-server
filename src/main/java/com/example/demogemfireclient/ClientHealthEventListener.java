@@ -2,6 +2,7 @@ package com.example.demogemfireclient;
 
 import com.gemstone.gemfire.cache.asyncqueue.AsyncEvent;
 import com.gemstone.gemfire.cache.asyncqueue.AsyncEventListener;
+import com.gemstone.gemfire.pdx.PdxInstance;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -29,13 +30,13 @@ public class ClientHealthEventListener implements AsyncEventListener{
         List<ClientHealthInfo> healthEvents =
                 list.stream()
                         .filter(ae -> ae.getOperation().isCreate() || ae.getOperation().isUpdate())
-                        .map(ae -> (ClientHealthInfo)ae.getDeserializedValue())
+                        .map(ae -> (ClientHealthInfo)((PdxInstance)ae.getDeserializedValue()).getObject())
                         .collect(Collectors.toList());
 
         if(healthEvents!=null && healthEvents.size()>0)
             clientHealthInfoRepository.save(healthEvents);
-
         log.info("Saved " + healthEvents.size() + " of client health info");
+
         return true;
 
     }

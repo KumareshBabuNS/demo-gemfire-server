@@ -2,7 +2,6 @@ package com.example.demogemfireclient;
 
 import com.gemstone.gemfire.cache.Cache;
 import com.gemstone.gemfire.cache.RegionShortcut;
-import com.gemstone.gemfire.pdx.ReflectionBasedAutoSerializer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +36,6 @@ public class DemoGemfireServerApplication {
 			@Value("${gemfire.manager.port:1098}") String managerPort) {
 
 		Properties gemfireProperties = new Properties();
-
 		gemfireProperties.setProperty("name", serverName);
 //		gemfireProperties.setProperty("mcast-port", "0");
 		gemfireProperties.setProperty("log-level", logLevel);
@@ -52,13 +50,9 @@ public class DemoGemfireServerApplication {
 	@Bean
 	CacheFactoryBean gemfireCache(@Qualifier("gemfireProperties") Properties gemfireProperties) {
 		CacheFactoryBean gemfireCache = new CacheFactoryBean();
-
 		gemfireCache.setClose(true);
 		gemfireCache.setProperties(gemfireProperties);
 		gemfireCache.setPdxReadSerialized(true);
-		gemfireCache.setPdxSerializer(new ReflectionBasedAutoSerializer());
-
-
 		return gemfireCache;
 	}
 
@@ -70,22 +64,31 @@ public class DemoGemfireServerApplication {
 		  	@Value("${gemfire.cache.server.port:40404}") int port) {
 
 		CacheServerFactoryBean gemfireCacheServer = new CacheServerFactoryBean();
-
 		gemfireCacheServer.setCache(gemfireCache);
 		gemfireCacheServer.setAutoStartup(DEFAULT_AUTO_STARTUP);
 		gemfireCacheServer.setBindAddress(bindAddress);
 		gemfireCacheServer.setHostNameForClients(hostNameForClients);
 		gemfireCacheServer.setPort(port);
-
 		return gemfireCacheServer;
 	}
 
+	@Bean
+	PartitionedRegionFactoryBean<String, Client> clientRegion(
+			Cache gemfireCache, ClientRepository clientRepository) throws Exception{
+		PartitionedRegionFactoryBean<String, Client> clientRegion = new PartitionedRegionFactoryBean();
+		clientRegion.setCache(gemfireCache);
+		clientRegion.setClose(false);
+		clientRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
+		clientRegion.setName("Client");
+		clientRegion.setPersistent(false);
+		clientRegion.setCacheLoader(new ClientCacheLoader(clientRepository));
+
+		return clientRegion;
+	}
 
 	@Bean
 	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion(
-			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository
-//			, @Qualifier("clientHealthRegionAttributes") RegionAttributes<String, ClientHealthInfo> clientHealthRegionAttributes
-	) throws Exception{
+			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository) throws Exception{
 		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
 		clientHealthRegion.setCache(gemfireCache);
 		clientHealthRegion.setClose(false);
@@ -94,19 +97,10 @@ public class DemoGemfireServerApplication {
 		clientHealthRegion.setPersistent(false);
 		clientHealthRegion.setAsyncEventQueues(
 				ArrayUtils.asArray(myAsyncEventQueue(gemfireCache, clientHealthInfoRepository).getObject()));
-//		clientHealthRegion.setAttributes(clientHealthRegionAttributes);
-
 		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoader(clientHealthInfoRepository));
 
 		return clientHealthRegion;
 	}
-
-//	@Bean
-//	RegionAttributesFactoryBean clientHealthRegionAttributes(ClientHealthInfoRepository clientHealthInfoRepository) {
-//		RegionAttributesFactoryBean clientHealthRegionAttributes = new RegionAttributesFactoryBean();
-//		clientHealthRegionAttributes.setCacheLoader(new ClientHealthCacheLoader(clientHealthInfoRepository));
-//		return clientHealthRegionAttributes;
-//	}
 
 
 	@Value("${gemfire.async-event.batch-size:100}") int asyncBatchSize;

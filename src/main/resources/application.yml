@@ -1,27 +1,28 @@
-spring:
-  jpa:
-    database: MYSQL
-    hibernate:
-      ddl-auto: update
-  datasource:
-    url: jdbc:mysql://10.235.56.5:3306/cf_5b6570bb_1bc2_4cd6_8e69_19b0944340f6
-    username: HZSGTDhHMQA01HSJ
-    password: Tu8hv7zSWDPDEL5B
-    driver-class-name: com.mysql.jdbc.Driver
-
-
 #spring:
 #  jpa:
 #    database: MYSQL
 #    hibernate:
 #      ddl-auto: update
 #  datasource:
-#    url: jdbc:mysql://localhost:3306/clienthealth
-#    username: root
-#    password: password
+#    url: jdbc:mysql://10.235.56.5:3306/cf_5b6570bb_1bc2_4cd6_8e69_19b0944340f6
+#    username: HZSGTDhHMQA01HSJ
+#    password: Tu8hv7zSWDPDEL5B
 #    driver-class-name: com.mysql.jdbc.Driver
+
+
+spring:
+  jpa:
+    database: MYSQL
+    hibernate:
+      ddl-auto: update
+  datasource:
+    url: ${MYSQL_URI:jdbc:mysql://localhost:3306/clienthealth}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:password}
+    driver-class-name: com.mysql.jdbc.Driver
 
 gemfire:
   async-event:
-    batch-size: 1000
-    batch-time-interval: 10000
+    batch-size: 200
+    batch-time-interval: 5000
+
