@@ -2,11 +2,15 @@ package com.example.demogemfireclient;
 
 import com.gemstone.gemfire.cache.Cache;
 import com.gemstone.gemfire.cache.RegionShortcut;
+import com.gemstone.gemfire.cache.asyncqueue.AsyncEventQueue;
+import feign.Feign;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.feign.EnableFeignClients;
+import org.springframework.cloud.netflix.feign.support.SpringMvcContract;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.CacheFactoryBean;
 import org.springframework.data.gemfire.PartitionedRegionFactoryBean;
@@ -14,11 +18,15 @@ import org.springframework.data.gemfire.function.config.EnableGemfireFunctions;
 import org.springframework.data.gemfire.server.CacheServerFactoryBean;
 import org.springframework.data.gemfire.util.ArrayUtils;
 import org.springframework.data.gemfire.wan.AsyncEventQueueFactoryBean;
+import org.springframework.hateoas.config.EnableHypermediaSupport;
 
 import java.util.Properties;
 
 @Slf4j
 @EnableGemfireFunctions
+@EnableFeignClients(clients = ClientHealthService.class)
+
+@EnableHypermediaSupport(type = EnableHypermediaSupport.HypermediaType.HAL)
 @SpringBootApplication
 public class DemoGemfireServerApplication {
 
@@ -26,6 +34,13 @@ public class DemoGemfireServerApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoGemfireServerApplication.class, args);
+	}
+
+	@Bean
+	ClientHealthService clientHealthService(){
+		return Feign.builder()
+				.contract(new SpringMvcContract())
+				.target(ClientHealthService.class, "localhost:8090");
 	}
 
 	@Bean
@@ -74,16 +89,19 @@ public class DemoGemfireServerApplication {
 
 	@Bean
 	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion(
-			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository) throws Exception{
+			Cache gemfireCache
+//			, ClientHealthInfoRepository clientHealthInfoRepository
+			, ClientHealthService clientHealthService, AsyncEventQueue myAsyncEventQueue
+
+	) throws Exception{
 		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
 		clientHealthRegion.setCache(gemfireCache);
 		clientHealthRegion.setClose(false);
 		clientHealthRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
 		clientHealthRegion.setName("ClientHealth");
 		clientHealthRegion.setPersistent(false);
-		clientHealthRegion.setAsyncEventQueues(
-				ArrayUtils.asArray(myAsyncEventQueue(gemfireCache, clientHealthInfoRepository).getObject()));
-		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoader(clientHealthInfoRepository));
+		clientHealthRegion.setAsyncEventQueues(ArrayUtils.asArray(myAsyncEventQueue));
+		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoader(clientHealthService));
 
 		return clientHealthRegion;
 	}
@@ -93,7 +111,7 @@ public class DemoGemfireServerApplication {
 	@Value("${gemfire.async-event.batch-time-interval:10000}") int asyncBatchTimeInterval;
 
 	@Bean
-	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository){
+	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache, ClientHealthService clientHealthService){
 
 		AsyncEventQueueFactoryBean asyncEventQueueFactoryBean = new AsyncEventQueueFactoryBean(gemfireCache);
 
@@ -102,9 +120,12 @@ public class DemoGemfireServerApplication {
 		asyncEventQueueFactoryBean.setPersistent(false);
 
 		asyncEventQueueFactoryBean.setBatchTimeInterval(asyncBatchTimeInterval);
-		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListener(clientHealthInfoRepository));
+//		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListenerDb(clientHealthInfoRepository));
+		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListenerFeign(clientHealthService));
 
 		return asyncEventQueueFactoryBean;
 	}
+
+
 
 }
