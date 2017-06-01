@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:gfe="http://www.springframework.org/schema/gemfire"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	      http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/gemfire http://www.springframework.org/schema/gemfire/spring-gemfire.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:property-placeholder/>
+
+    <util:properties id="gemfireProperties">
+        <prop key="name">${gemfire.server.name:DefaultGemfireServer}</prop>
+        <prop key="log-level">${gemfire.log.level:config}</prop>
+        <prop key="start-locator">${gemfire.locator.host-port:localhost[10334]}</prop>
+        <prop key="jmx-manager">true</prop>
+        <prop key="jmx-manager-port">${gemfire.manager.port:1098}</prop>
+        <prop key="jmx-manager-start">true</prop>
+    </util:properties>
+
+    <gfe:cache properties-ref="gemfireProperties" pdx-disk-store="pdxDiskStore" pdx-read-serialized="true" pdx-persistent="true" />
+
+    <gfe:cache-server id="gemfireCacheServer" auto-startup="true"
+                      bind-address="${gemfire.cache.server.bind-address:localhost}"
+                      host-name-for-clients="${gemfire.cache.server.hostname-for-clients:localhost}"
+                      port="${gemfire.cache.server.port:40404}"/>
+
+    <gfe:partitioned-region id="ClientHealth" persistent="false" >
+        <gfe:cache-loader>
+            <bean class="com.example.demogemfireclient.ClientHealthCacheLoader"/>
+        </gfe:cache-loader>
+    </gfe:partitioned-region>
+
+    <gfe:async-event-queue id="clientHealthAsyncQueue" parallel="true" persistent="false"
+                           batch-size="${gemfire.async-event.batch-size:200}"
+                           maximum-queue-memory="${gemfire.async-event.max-queue-memory:100}"
+                           batch-time-interval="${gemfire.async-event.batch-time-interval:5000}">
+        <gfe:async-event-listener>
+            <bean class="com.example.demogemfireclient.ClientHealthEventListener"/>
+        </gfe:async-event-listener>
+    </gfe:async-event-queue>
+
+    <gfe:disk-store id="pdxDiskStore">
+        <gfe:disk-dir location="${gemfire.pdx.disk-store-dir}" />
+    </gfe:disk-store>
+</beans>

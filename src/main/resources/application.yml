@@ -12,6 +12,16 @@ spring:
       max-active: 50
 
 gemfire:
+  manager:
+    port: 1098
+  locator:
+    host-port: localhost[10334]
+  log:
+    level: config
+  server:
+    name: DefaultGemfireServer
+  pdx:
+    disk-store-dir: /home/derrickwong/workspaces/
   async-event:
     batch-size: 200
     batch-time-interval: 5000
@@ -21,4 +31,3 @@ gemfire:
     server:
       bind-address: 0.0.0.0
       hostname-for-clients: ${CACHE_SERVER_HOSTNAME:localhost}
-
