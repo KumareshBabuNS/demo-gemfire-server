@@ -13,12 +13,12 @@ import java.util.stream.Collectors;
  * Created by derrickwong on 29/5/2017.
  */
 @Slf4j
-public class ClientHealthEventListenerDb implements AsyncEventListener {
+public class ClientHealthEventListener implements AsyncEventListener {
 
     private ClientHealthInfoRepository clientHealthInfoRepository;
 
     @Autowired
-    public ClientHealthEventListenerDb(ClientHealthInfoRepository clientHealthInfoRepository){
+    public ClientHealthEventListener(ClientHealthInfoRepository clientHealthInfoRepository){
         this.clientHealthInfoRepository=clientHealthInfoRepository;
     }
 

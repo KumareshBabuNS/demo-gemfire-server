@@ -3,14 +3,11 @@ package com.example.demogemfireclient;
 import com.gemstone.gemfire.cache.Cache;
 import com.gemstone.gemfire.cache.RegionShortcut;
 import com.gemstone.gemfire.cache.asyncqueue.AsyncEventQueue;
-import feign.Feign;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.netflix.feign.EnableFeignClients;
-import org.springframework.cloud.netflix.feign.support.SpringMvcContract;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.CacheFactoryBean;
 import org.springframework.data.gemfire.DiskStoreFactoryBean;
@@ -19,15 +16,12 @@ import org.springframework.data.gemfire.function.config.EnableGemfireFunctions;
 import org.springframework.data.gemfire.server.CacheServerFactoryBean;
 import org.springframework.data.gemfire.util.ArrayUtils;
 import org.springframework.data.gemfire.wan.AsyncEventQueueFactoryBean;
-import org.springframework.hateoas.config.EnableHypermediaSupport;
 
 import java.util.Arrays;
 import java.util.Properties;
 
 @Slf4j
 @EnableGemfireFunctions
-@EnableFeignClients(clients = ClientHealthService.class)
-@EnableHypermediaSupport(type = EnableHypermediaSupport.HypermediaType.HAL)
 @SpringBootApplication
 public class DemoGemfireServerApplication {
 
@@ -35,13 +29,6 @@ public class DemoGemfireServerApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoGemfireServerApplication.class, args);
-	}
-
-	@Bean
-	ClientHealthService clientHealthService(){
-		return Feign.builder()
-				.contract(new SpringMvcContract())
-				.target(ClientHealthService.class, "localhost:8090");
 	}
 
 	@Bean
@@ -53,7 +40,6 @@ public class DemoGemfireServerApplication {
 
 		Properties gemfireProperties = new Properties();
 		gemfireProperties.setProperty("name", serverName);
-//		gemfireProperties.setProperty("mcast-port", "0");
 		gemfireProperties.setProperty("log-level", logLevel);
 		gemfireProperties.setProperty("locators", locatorHostPort);
 		gemfireProperties.setProperty("jmx-manager", "true");
@@ -90,10 +76,11 @@ public class DemoGemfireServerApplication {
 		return gemfireCacheServer;
 	}
 
+
+
 	@Bean
 	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion(
-			Cache gemfireCache, ClientHealthService clientHealthService, AsyncEventQueue myAsyncEventQueue
-	) throws Exception{
+			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository, AsyncEventQueue myAsyncEventQueue) throws Exception{
 		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
 		clientHealthRegion.setCache(gemfireCache);
 		clientHealthRegion.setClose(false);
@@ -101,24 +88,7 @@ public class DemoGemfireServerApplication {
 		clientHealthRegion.setName("ClientHealth");
 		clientHealthRegion.setPersistent(false);
 		clientHealthRegion.setAsyncEventQueues(ArrayUtils.asArray(myAsyncEventQueue));
-		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoaderFeign(clientHealthService));
-
-		return clientHealthRegion;
-	}
-
-
-	@Bean
-	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion2(
-			Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository, AsyncEventQueue myAsyncEventQueue2
-	) throws Exception{
-		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
-		clientHealthRegion.setCache(gemfireCache);
-		clientHealthRegion.setClose(false);
-		clientHealthRegion.setShortcut(RegionShortcut.PARTITION_REDUNDANT);
-		clientHealthRegion.setName("ClientHealth2");
-		clientHealthRegion.setPersistent(false);
-		clientHealthRegion.setAsyncEventQueues(ArrayUtils.asArray(myAsyncEventQueue2));
-		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoaderDb(clientHealthInfoRepository));
+		clientHealthRegion.setCacheLoader(new ClientHealthCacheLoader(clientHealthInfoRepository));
 
 		return clientHealthRegion;
 	}
@@ -130,9 +100,8 @@ public class DemoGemfireServerApplication {
 	@Value("${gemfire.async-event.max-queue-memory:100}") int maxQueueMemory;
 
 
-
 	@Bean
-	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache, ClientHealthService clientHealthService){
+	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository){
 
 		AsyncEventQueueFactoryBean asyncEventQueueFactoryBean = new AsyncEventQueueFactoryBean(gemfireCache);
 
@@ -143,27 +112,9 @@ public class DemoGemfireServerApplication {
 		asyncEventQueueFactoryBean.setMaximumQueueMemory(maxQueueMemory);
 
 		asyncEventQueueFactoryBean.setBatchTimeInterval(asyncBatchTimeInterval);
-		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListenerFeign(clientHealthService));
+		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListener(clientHealthInfoRepository));
 
 		return asyncEventQueueFactoryBean;
-	}
-
-
-	@Bean
-	AsyncEventQueueFactoryBean myAsyncEventQueue2(Cache gemfireCache, ClientHealthInfoRepository clientHealthInfoRepository){
-
-		AsyncEventQueueFactoryBean asyncEventQueueFactoryBean2 = new AsyncEventQueueFactoryBean(gemfireCache);
-
-		asyncEventQueueFactoryBean2.setParallel(true);
-		asyncEventQueueFactoryBean2.setBatchSize(asyncBatchSize);
-		asyncEventQueueFactoryBean2.setPersistent(false);
-		asyncEventQueueFactoryBean2.setDispatcherThreads(asyncDispatcherThread);
-		asyncEventQueueFactoryBean2.setMaximumQueueMemory(maxQueueMemory);
-
-		asyncEventQueueFactoryBean2.setBatchTimeInterval(asyncBatchTimeInterval);
-		asyncEventQueueFactoryBean2.setAsyncEventListener(new ClientHealthEventListenerDb(clientHealthInfoRepository));
-
-		return asyncEventQueueFactoryBean2;
 	}
 
 	@Bean

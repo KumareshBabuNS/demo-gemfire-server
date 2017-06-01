@@ -10,13 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
  * Created by derrickwong on 29/5/2017.
  */
 @Slf4j
-public class ClientHealthCacheLoaderDb
+public class ClientHealthCacheLoader
     implements CacheLoader<String, ClientHealthInfo> {
 
     private ClientHealthInfoRepository clientHealthInfoRepository;
 
     @Autowired
-    public ClientHealthCacheLoaderDb(ClientHealthInfoRepository clientHealthInfoRepository) {
+    public ClientHealthCacheLoader(ClientHealthInfoRepository clientHealthInfoRepository) {
         this.clientHealthInfoRepository = clientHealthInfoRepository;
     }
 
