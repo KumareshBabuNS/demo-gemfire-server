@@ -13,6 +13,7 @@ import org.springframework.cloud.netflix.feign.EnableFeignClients;
 import org.springframework.cloud.netflix.feign.support.SpringMvcContract;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.CacheFactoryBean;
+import org.springframework.data.gemfire.DiskStoreFactoryBean;
 import org.springframework.data.gemfire.PartitionedRegionFactoryBean;
 import org.springframework.data.gemfire.function.config.EnableGemfireFunctions;
 import org.springframework.data.gemfire.server.CacheServerFactoryBean;
@@ -20,6 +21,7 @@ import org.springframework.data.gemfire.util.ArrayUtils;
 import org.springframework.data.gemfire.wan.AsyncEventQueueFactoryBean;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
 
+import java.util.Arrays;
 import java.util.Properties;
 
 @Slf4j
@@ -67,6 +69,8 @@ public class DemoGemfireServerApplication {
 		gemfireCache.setClose(true);
 		gemfireCache.setProperties(gemfireProperties);
 		gemfireCache.setPdxReadSerialized(true);
+		gemfireCache.setPdxDiskStoreName("pdxDiskStore");
+		gemfireCache.setPdxPersistent(true);
 		return gemfireCache;
 	}
 
@@ -88,10 +92,7 @@ public class DemoGemfireServerApplication {
 
 	@Bean
 	PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion(
-			Cache gemfireCache
-//			, ClientHealthInfoRepository clientHealthInfoRepository
-			, ClientHealthService clientHealthService, AsyncEventQueue myAsyncEventQueue
-
+			Cache gemfireCache, ClientHealthService clientHealthService, AsyncEventQueue myAsyncEventQueue
 	) throws Exception{
 		PartitionedRegionFactoryBean<String, ClientHealthInfo> clientHealthRegion = new PartitionedRegionFactoryBean();
 		clientHealthRegion.setCache(gemfireCache);
@@ -125,6 +126,10 @@ public class DemoGemfireServerApplication {
 
 	@Value("${gemfire.async-event.batch-size:100}") int asyncBatchSize;
 	@Value("${gemfire.async-event.batch-time-interval:10000}") int asyncBatchTimeInterval;
+	@Value("${gemfire.async-event.dispatcher-thread:5}") int asyncDispatcherThread;
+	@Value("${gemfire.async-event.max-queue-memory:100}") int maxQueueMemory;
+
+
 
 	@Bean
 	AsyncEventQueueFactoryBean myAsyncEventQueue(Cache gemfireCache, ClientHealthService clientHealthService){
@@ -134,6 +139,8 @@ public class DemoGemfireServerApplication {
 		asyncEventQueueFactoryBean.setParallel(true);
 		asyncEventQueueFactoryBean.setBatchSize(asyncBatchSize);
 		asyncEventQueueFactoryBean.setPersistent(false);
+		asyncEventQueueFactoryBean.setDispatcherThreads(asyncDispatcherThread);
+		asyncEventQueueFactoryBean.setMaximumQueueMemory(maxQueueMemory);
 
 		asyncEventQueueFactoryBean.setBatchTimeInterval(asyncBatchTimeInterval);
 		asyncEventQueueFactoryBean.setAsyncEventListener(new ClientHealthEventListenerFeign(clientHealthService));
@@ -150,11 +157,24 @@ public class DemoGemfireServerApplication {
 		asyncEventQueueFactoryBean2.setParallel(true);
 		asyncEventQueueFactoryBean2.setBatchSize(asyncBatchSize);
 		asyncEventQueueFactoryBean2.setPersistent(false);
+		asyncEventQueueFactoryBean2.setDispatcherThreads(asyncDispatcherThread);
+		asyncEventQueueFactoryBean2.setMaximumQueueMemory(maxQueueMemory);
 
 		asyncEventQueueFactoryBean2.setBatchTimeInterval(asyncBatchTimeInterval);
 		asyncEventQueueFactoryBean2.setAsyncEventListener(new ClientHealthEventListenerDb(clientHealthInfoRepository));
 
 		return asyncEventQueueFactoryBean2;
+	}
+
+	@Bean
+	DiskStoreFactoryBean pdxDiskStore(Cache gemfireCache, @Value("${gemfire.pdx.disk-store-dir}") String pdxDir){
+		DiskStoreFactoryBean pdxDiskStore = new DiskStoreFactoryBean();
+		pdxDiskStore.setBeanName("pdxDiskStore");
+		DiskStoreFactoryBean.DiskDir diskDir = new DiskStoreFactoryBean.DiskDir(pdxDir);
+		pdxDiskStore.setDiskDirs(Arrays.asList(diskDir));
+		pdxDiskStore.setCache(gemfireCache);
+
+		return pdxDiskStore;
 	}
 
 }

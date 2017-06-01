@@ -25,6 +25,12 @@ gemfire:
   async-event:
     batch-size: 200
     batch-time-interval: 5000
-  cache.server.bind-address: 0.0.0.0
+    max-queue-memory: 500
+    dispatcher-thread: 10
+  cache:
+    server:
+      bind-address: 0.0.0.0
+      hostname-for-clients: ${CACHE_SERVER_HOSTNAME:localhost}
 
 restrepo.uri: ${RESTREPO_URI:localhost:8090}
+
